@@ -44,6 +44,7 @@ struct Node {
     }
     Node(double oij_){
         oij=oij_;
+        setWeights(1);
     }
 
 };
@@ -95,27 +96,39 @@ namespace nngraph{
                 return node;
             });
         });
-        return holdNodes;
+        return std::move(holdNodes);
     }
 
 
     /**This isn't done yet*/
-    /*template<typename Fn, typename Act>
-    auto back_prop(std::vector<std::vector<*Node> >&& holdNodes, const double& y, const Act& activation, const Fn& costFunctionDeriv){
+    template<typename Fn, typename Act>
+    auto back_prop(std::vector<std::vector<Node*> >&& holdNodes, const double& y, const Act& activation, const Fn& costFunctionDeriv){
 
-        for_each_parallel(std::move(holdNodes.back()), [&](auto& nodePointer, const auto& nodeIndex){
-            for_each_parallel(std::move(nodePointer->forwardW), [&](auto& w, const auto& wIndex){
-                w.dw=costFunctionDeriv(nodePointer->oij, y)*activation(AutoDiff(nodePointer->oij, 1.0)).getDual()*
-            })
-            
-        })  
-        
-
-        futilities::for_each(std::move(holdNodes), [&](const auto& nodeArray, const auto& layerIndex){
-            
+        //This is a "fake" derivative as there are no w's in the output layer in the graph model
+        holdNodes.back()=futilities::for_each_parallel(std::move(holdNodes.back()), [&](auto& nodePointer, const auto& nodeIndex){
+            nodePointer->forwardW=futilities::for_each_parallel(std::move(nodePointer->forwardW), [&](auto& w, const auto& wIndex){
+                w.dw=costFunctionDeriv(nodePointer->oij, y)*activation(AutoDiff<double>(nodePointer->oij, 1.0)).getDual();
+                return w;
+            });
+            return nodePointer;
         });
-        futilities::for_each_parallel(std::move(holdNodes), )
-    }*/
+        int index=holdNodes.size();
+        for_each(holdNodes.rbegin()+1, holdNodes.rend(), [&](auto& layers){
+            index--;
+            //std::cout<<layers.size()<<std::endl;
+            layers=futilities::for_each_parallel(std::move(layers), [&](auto& nodePointer, const auto& nodeIndex){
+                double mutualDerivative=activation(AutoDiff<double>(nodePointer->oij, 1.0)).getDual()*nodePointer->oij;
+                auto refToForwardNode=holdNodes[index];//reference to the layer one closer to output
+                nodePointer->forwardW=futilities::for_each_parallel(std::move(nodePointer->forwardW), [&](auto& w, const auto& wIndex){
+                    w.dw=w.w*mutualDerivative*refToForwardNode[wIndex]->forwardW[wIndex].dw/refToForwardNode[wIndex]->oij;
+                    return w;
+                });
+                return nodePointer;
+            });
+        });
+        
+        return std::move(holdNodes);
+    }
 
 }
 
