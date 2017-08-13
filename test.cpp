@@ -26,9 +26,7 @@ TEST_CASE("Test Forward", "[NNGraph]"){
     printLayer(2, false);
 
 
-    nodes=nngraph::back_prop(std::move(nodes), .5, [&](const auto& input){
-        return 1.0/(1.0+exp(-input));
-    },
+    nodes=nngraph::back_prop(std::move(nodes), .5,
     [&](const auto& x, const auto& y){
         return 2*(x-y);
     }
