@@ -1,0 +1,5 @@
+.vscode
+*.gcda
+*.gcno
+*.o
+test
