@@ -20,14 +20,20 @@ int numFromEnd(int totalNodes, int totalToThisPoint, int totalInCurrentIndex){
 }
 
 struct weights{
-    double w;
-    double dw;
-    double helperDW;
+    double w; //stores the weight
+    double dw; //stores the derivative of the weight
+    double helperDW; //stores a helper function for the rest of the derivatives
     weights(){
-        w=d(gen);
+        w=d(gen); //random weights
     }
 };
 
+/**this is a model for the nodes in a network.  */
+/**The oij stores the value of 
+g(w*theta) where w and theta are the 
+outputs from prior nodes. dA is the
+derivative of g at w*theta.
+*/
 struct Node {
     double oij;
     double dA;
@@ -79,15 +85,7 @@ namespace nngraph{
                 })
             );
         });
-        /*holdNodes.emplace_back(
-            futilities::for_each_parallel(0, numNodesInLayer.back(), [&](const auto& nodeIndex){
-                double inputIntoActivation=futilities::sum(holdNodes.back(), [&](const auto& nodePointerPrev, const auto& prevNodeIndex){
-                    return nodePointerPrev->oij*nodePointerPrev->forwardW[nodeIndex].w;
-                });
-                auto dualActivation=activation(AutoDiff<double>(inputIntoActivation, 1.0));
-                return new Node(dualActivation.getStandard(), dualActivation.getDual());
-            })
-        );*/
+
         return holdNodes;
     }
     template<typename Fn>
@@ -113,7 +111,6 @@ namespace nngraph{
     }
 
 
-    /**This isn't done yet*/
     template<typename Fn>
     auto back_prop(std::vector<std::vector<Node*> >&& holdNodes, const double& y, const Fn& costFunctionDeriv){
 
@@ -128,19 +125,23 @@ namespace nngraph{
         int index=holdNodes.size();
         for_each(holdNodes.rbegin()+1, holdNodes.rend(), [&](auto& layers){
             index--;
-            //std::cout<<layers.size()<<std::endl;
             layers=futilities::for_each_parallel(std::move(layers), [&](auto& nodePointer, const auto& nodeIndex){
-                //double mutualDerivative=nodePointer->oij*nodePointer->dA;
                 auto refToForwardNode=holdNodes[index];//reference to the layer one closer to output
                 nodePointer->forwardW=futilities::for_each_parallel(std::move(nodePointer->forwardW), [&](auto& w, const auto& wIndex){
-                    w.dw=refToForwardNode[wIndex]->forwardW[wIndex].helperDW*nodePointer->oij;
-                    w.helperDW=nodePointer->dA*refToForwardNode[wIndex]->forwardW[wIndex].helperDW*w.w;
+                    //the dW is equal to the previous helper (a chain rule property), multiplied by the current value.  note that the current value is equivalent to the "theta*w" , the derivative of which is theta.
+                    w.dw=futilities::sum(refToForwardNode[wIndex]->forwardW, [&](const auto& ws, const auto& wsIndex){
+                        return ws.helperDW;
+                    });
+                    //continues propagating the chain rule. Uses the current activation function derivative multipled by the current w...since the derivatives not yet computed need the current w 
+                    //w.helperDW=nodePointer->dA*refToForwardNode[wIndex]->forwardW[wIndex].helperDW*w.w;
+                    w.helperDW=nodePointer->dA*w.dw*w.w;
+
+                    w.dw*=nodePointer->oij;
                     return w;
                 });
                 return nodePointer;
             });
         });
-        
         return std::move(holdNodes);
     }
 
