@@ -44,7 +44,7 @@ TEST_CASE("Test Forward", "[NNGraph]"){
     printLayerDW(0, true);
     printLayerDW(1, true);
     printLayerDW(2, true);
-
+    nngraph::cleanup(nodes);
     //REQUIRE(newton::zeros(squareTestV, deriv, guess, .00001, 20)==Approx(sqrt(2.0)));
 }  
   

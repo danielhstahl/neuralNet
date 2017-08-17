@@ -133,7 +133,6 @@ namespace nngraph{
                         return ws.helperDW;
                     });
                     //continues propagating the chain rule. Uses the current activation function derivative multipled by the current w...since the derivatives not yet computed need the current w 
-                    //w.helperDW=nodePointer->dA*refToForwardNode[wIndex]->forwardW[wIndex].helperDW*w.w;
                     w.helperDW=nodePointer->dA*w.dw*w.w;
 
                     w.dw*=nodePointer->oij;
@@ -143,6 +142,14 @@ namespace nngraph{
             });
         });
         return std::move(holdNodes);
+    }
+    void cleanup(std::vector<std::vector<Node*> >& holdNodes){
+        for(auto&& nodeV:holdNodes){
+            for(auto&& node:nodeV){
+                delete node;
+            }
+        }
+        holdNodes.clear();
     }
 
 }
